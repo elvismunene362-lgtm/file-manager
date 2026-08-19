@@ -1,30 +1,25 @@
-#ifndef TUI_H
-#define TUI_H
-
+#ifndef FILE_MANAGER_H
+#define FILE_MANAGER_H
 #include "file_manager.hpp"
+#endif
+
 #include <ncurses.h>
-#include <vector>
 #include <string>
+#include <vector>
 
-class TUI{
-public:
-   TUI(FileManager& fm);
-   ~TUI();
-
-   void run();
-
-private:
-    FileManager& filemanager;
-
+struct TUI {
+    FileManager&             file_manager;
     std::vector<std::string> entries;
-    int selected = 0;
-    int scrolloffset = 0;
+    int                      selected;
+    int                      scroll_offset;
 
+    void init();
+    void deinit();
+    void run();
     void initcolors();
-    void loaddirectory();
+    void load_directory();
     void draw();
     void handleinput(int ch);
     void encryptselected();
     void showmessage(const std::string& msg);
 };
-#endif

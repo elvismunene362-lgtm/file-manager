@@ -1,10 +1,12 @@
+#ifndef TUI_H
+#define TUI_H
 #include "tui.h"
-#include <filesystem>
-#include <algorithm>
 
-namespace fs = std::filesystem;
+#include "file_manager.hpp"
+#endif
 
-TUI::TUI(FileManager& fm) : filemanager(fm){
+void TUI::init()
+{
     initscr();
     cbreak();
     noecho();
@@ -14,10 +16,11 @@ TUI::TUI(FileManager& fm) : filemanager(fm){
     use_default_colors();
     initcolors();
 }
-TUI::~TUI(){
-    endwin();
-}
-void TUI::initcolors(){
+
+void TUI::deinit() { endwin(); }
+
+void TUI::initcolors()
+{
     init_pair(1, COLOR_BLACK, COLOR_CYAN);
     init_pair(2, COLOR_CYAN, -1);
     init_pair(3, COLOR_WHITE, -1);
@@ -25,41 +28,44 @@ void TUI::initcolors(){
     init_pair(5, COLOR_BLACK, COLOR_GREEN);
     init_pair(6, COLOR_YELLOW, -1);
 }
-void TUI::loaddirectory(){
-    entries = filemanager.getEntries();
-    selected = 0;
-    scrolloffset = 0;
+
+void TUI::load_directory()
+{
+    entries       = file_manager.getEntries();
+    selected      = 0;
+    scroll_offset = 0;
 }
 
-void TUI::draw(){
+void TUI::draw()
+{
     clear();
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
-//header
+    // header
     attron(COLOR_PAIR(4) | A_BOLD);
-    mvhline(0,0, ' ', maxX);
-    mvprintw(0,2, "FILE MANAGER . TUI Mode ");
+    mvhline(0, 0, ' ', maxX);
+    mvprintw(0, 2, "FILE MANAGER . TUI Mode ");
     attroff(COLOR_PAIR(4) | A_BOLD);
-//current path
+    // current path
     attron(COLOR_PAIR(6));
-    mvprintw(1,2, "path: %s", fs::current_path().c_str());
+    mvprintw(1, 2, "path: %s", fs::current_path().c_str());
     attroff(COLOR_PAIR(6));
-//help
-    mvprintw(2,2, "up/down Navigate Enter open e encrypt q quit");
-//file list
-    int liststart = 4;
+    // help
+    mvprintw(2, 2, "up/down Navigate Enter open e encrypt q quit");
+    // file list
+    int liststart  = 4;
     int listheight = maxY - 6;
 
-    for(int i = 0; i <listheight && (i + scrolloffset) < (int)entries.size(); ++i){
-        int idx = i + scrolloffset;
+    for (int i = 0; i < listheight && (i + scroll_offset) < (int) entries.size(); ++i) {
+        int         idx  = i + scroll_offset;
         std::string name = entries[idx];
 
-        bool isDir=(name == "..")||fs::is_directory(name);
-        if(idx == selected){
+        bool isDir = (name == "..") || fs::is_directory(name);
+        if (idx == selected) {
             attron(COLOR_PAIR(1) | A_BOLD);
-        }else if(isDir){
+        } else if (isDir) {
             attron(COLOR_PAIR(2) | A_BOLD);
-        }else{
+        } else {
             attron(COLOR_PAIR(3));
         }
         std::string display = (isDir ? "[DIR] " : "[FILE] ") + name;
@@ -67,74 +73,75 @@ void TUI::draw(){
 
         attroff(COLOR_PAIR(1) | COLOR_PAIR(2) | COLOR_PAIR(3) | A_BOLD);
     }
-//status bar
+    // status bar
     attron(COLOR_PAIR(5) | A_BOLD);
-    mvhline(maxY -1, 0, ' ', maxX);
+    mvhline(maxY - 1, 0, ' ', maxX);
 
     std::string status = entries.empty() ? "No items" : "selected: " + entries[selected];
-    mvprintw(maxY -1, 2, "%s",status.c_str());
+    mvprintw(maxY - 1, 2, "%s", status.c_str());
     attroff(COLOR_PAIR(5) | A_BOLD);
 
     refresh();
 }
 
-void TUI::handleinput(int ch){
-    int maxY,maxX;
-    getmaxyx(stdscr,maxY, maxX);
+void TUI::handleinput(int ch)
+{
+    int maxY, maxX;
+    getmaxyx(stdscr, maxY, maxX);
     int listheight = maxY - 6;
 
-    switch(ch){
+    switch (ch) {
         case KEY_UP:
-            if(selected > 0){
+            if (selected > 0) {
                 --selected;
-                if(selected < scrolloffset)
-                scrolloffset = selected;
+                if (selected < scroll_offset) scroll_offset = selected;
             }
             break;
         case KEY_DOWN:
-            if(selected< (int)entries.size() - 1){
+            if (selected < (int) entries.size() - 1) {
                 ++selected;
-                if(selected >= scrolloffset + listheight){
-                    scrolloffset = selected = listheight + 1;
+                if (selected >= scroll_offset + listheight) {
+                    scroll_offset = selected = listheight + 1;
                 }
             }
             break;
         case KEY_PPAGE:
-            selected = std::max(0, selected = listheight);
-            scrolloffset = std::max(0,scrolloffset - listheight);
+            selected      = std::max(0, selected = listheight);
+            scroll_offset = std::max(0, scroll_offset - listheight);
             break;
-        case KEY_NPAGE:
-            selected = std::min((int)entries.size() - 1, selected + listheight);
-            break;
+        case KEY_NPAGE: selected = std::min((int) entries.size() - 1, selected + listheight); break;
         case '\n':
         case KEY_ENTER:
-            if(!entries.empty()){
+            if (!entries.empty()) {
                 std::string target = entries[selected];
-                filemanager.changedirectory(target);
-                loaddirectory();
+                file_manager.changedirectory(target);
+                load_directory();
             }
             break;
-        case'e':
-        case 'E':
-            encryptselected();
-            break;
+        case 'e':
+        case 'E': encryptselected(); break;
         case 'd':
-        case 'D':
-            if(!files[selected].is_directory){
-                echo();curs_set(1);
-                mvprintw(LINES = 2)
-            }
+        // case 'D':
+        //     if (!entries[selected].is_directory) {
+        //         echo();
+        //         curs_set(1);
+        //         mvprintw(LINES = 2);
+        //     }
+        //     break;
+        default: {
+        }
     }
 }
 
-void TUI::encryptselected(){
-    if(entries.empty() || entries[selected] == ".."){
+void TUI::encryptselected()
+{
+    if (entries.empty() || entries[selected] == "..") {
         showmessage("Select a file to encrypt");
         return;
     }
 
     std::string filename = entries[selected];
-    if(fs::is_directory(filemanager.getCurrentPath() + "/" + filename)){
+    if (fs::is_directory(file_manager.getCurrentPath() + "/" + filename)) {
         showmessage("Cannot encrypt a directory");
         return;
     }
@@ -154,16 +161,17 @@ void TUI::encryptselected(){
 
     std::string key(key_buffer);
 
-    if(key.empty()){
+    if (key.empty()) {
         showmessage("Encryption cancelled: empty key");
         return;
     }
 
-    filemanager.encryptfile(filename, key);
+    file_manager.encryptfile(filename, key);
     showmessage("encrypted \"" + filename + "\" with keylength " + std::to_string(key.length()));
 }
 
-void TUI::showmessage(const std::string& msg){
+void TUI::showmessage(const std::string& msg)
+{
     attron(COLOR_PAIR(6) | A_BOLD);
     mvprintw(LINES - 2, 2, "%s (press any key)", msg.c_str());
     attroff(COLOR_PAIR(6) | A_BOLD);
@@ -171,14 +179,15 @@ void TUI::showmessage(const std::string& msg){
     getch();
 }
 
-void TUI::run(){
-    loaddirectory();
+void TUI::run()
+{
+    load_directory();
 
     int ch;
-    while(true){
+    while (true) {
         draw();
         ch = getch();
-        if(ch == 'q' || ch == 'Q'){
+        if (ch == 'q' || ch == 'Q') {
             break;
         }
         handleinput(ch);
