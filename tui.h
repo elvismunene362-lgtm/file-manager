@@ -21,5 +21,6 @@ struct TUI {
     void draw();
     void handleinput(int ch);
     void encryptselected();
+    void decrypt_selected();
     void showmessage(const std::string& msg);
 };

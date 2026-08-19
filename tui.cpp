@@ -121,16 +121,54 @@ void TUI::handleinput(int ch)
         case 'e':
         case 'E': encryptselected(); break;
         case 'd':
-        // case 'D':
-        //     if (!entries[selected].is_directory) {
-        //         echo();
-        //         curs_set(1);
-        //         mvprintw(LINES = 2);
-        //     }
-        //     break;
+        case 'D': decrypt_selected(); break;
         default: {
         }
     }
+}
+
+void TUI::decrypt_selected()
+{
+    if (entries.empty() || entries[selected] == "..") {
+        showmessage("Select a file to decrypt");
+        return;
+    }
+
+    std::string filename = entries[selected];
+    fs::path    p        = file_manager.getCurrentPath() + "/" + filename;
+    if (fs::is_directory(p)) {
+        showmessage("Cannot encrypt a directory");
+        return;
+    }
+
+    if (p.extension() != ".enc") {
+        showmessage("File is unecrypted");
+        return;
+    }
+
+    echo();
+    curs_set(1);
+    attron(COLOR_PAIR(6));
+    // TODO: Figure out how to hide password characters
+    mvprintw(LINES - 3, 2, "Enter decryption key; ");
+    attroff(COLOR_PAIR(6));
+    clrtoeol();
+
+    char key_buffer[256];
+    getnstr(key_buffer, 255);
+
+    noecho();
+    curs_set(0);
+
+    std::string key(key_buffer);
+
+    if (key.empty()) {
+        showmessage("Decryption cancelled: empty key");
+        return;
+    }
+
+    file_manager.decryptfile(filename, key);
+    showmessage("decrypted \"" + filename + "\" with keylength " + std::to_string(key.length()));
 }
 
 void TUI::encryptselected()

@@ -43,27 +43,52 @@ void FileManager::encryptfile(const std::string& filename, std::string key)
         std::cout << "Error: File not found.\n";
         return;
     }
-    // open in binary to support images,pdfs and text
-    std::ifstream inFile(filepath, std::ios::binary);
-    std::string content((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
-    inFile.close();
-    // XOR encryption process
-    for (size_t i = 0; i < content.size(); i++) {
-        content[i] ^= key[i % key.length()];
-    }
 
+    std::fstream in;
+    std::fstream out;
+    in.open(filepath, std::fstream::in);
     fs::path outpath = filepath;
-    outpath += ".enc";
-    std::ofstream outFile(outpath, std::ios::binary);
-    outFile << content;
-    outFile.close();
+    outpath += fs::path(".enc");
+    out.open(outpath, std::fstream::out);
+
+    char c;
+    int  k = 0;
+    while (in >> std::noskipws >> c) {
+        int tmp = (c + key[k % key.length()]);
+        out << (char) tmp;
+        k++;
+    }
+    in.close();
+    out.close();
     std::cout << "File successfully encrypted!\n";
 }
 
 void FileManager::decryptfile(const std::string& filename, std::string& key)
 {
-    encryptfile(filename, key);
-    std::cout << "File successfully decrypted\n";
+    if (key.empty()) return;
+
+    fs::path filepath = current_path / filename;
+    if (!fs::exists(filepath) || fs::is_directory(filepath)) {
+        std::cout << "Error: File not found.\n";
+        return;
+    }
+
+    std::fstream in;
+    std::fstream out;
+    in.open(filepath, std::fstream::in);
+    fs::path outpath = filepath.stem(); // strip ".enc" extension
+    out.open(outpath, std::fstream::out);
+
+    char c;
+    int  k = 0;
+    while (in >> std::noskipws >> c) {
+        int tmp = (c - key[k % key.length()]);
+        out << (char) tmp;
+        k++;
+    }
+    in.close();
+    out.close();
+    std::cout << "File successfully decrypted!\n";
 }
 
 std::string FileManager::getCurrentPath() const { return current_path.string(); }
